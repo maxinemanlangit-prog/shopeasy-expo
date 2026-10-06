@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
-import { CartItem, Convo, Order, PRODUCTS, initialCart, initialConvos, initialOrders, peso } from '../data';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { CartItem, Convo, Order, Product, initialCart, initialConvos, initialOrders, peso, getProductsFromDb } from '../data';
+import { initDatabase } from '../services/db';
 
 interface ShopState {
+  products: Record<string, Product>;
+  refreshProducts: () => void;
   cart: CartItem[];
   orders: Order[];
   convos: Convo[];
@@ -32,9 +35,23 @@ interface ShopState {
 const ShopContext = createContext<ShopState | null>(null);
 
 export function ShopProvider({ children }: { children: React.ReactNode }) {
+  const [products, setProducts] = useState<Record<string, Product>>({});
   const [cart, setCart] = useState<CartItem[]>(initialCart);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [convos, setConvos] = useState<Convo[]>(initialConvos);
+
+  useEffect(() => {
+    initDatabase();
+    setProducts(getProductsFromDb());
+  }, []);
+
+  const refreshProducts = () => {
+    try {
+      setProducts(getProductsFromDb());
+    } catch {
+      setProducts({});
+    }
+  };
   const [purchTab, setPurchTab] = useState<Order['status']>('To Ship');
   const [activeThread, setActiveThread] = useState<number | null>(null);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
@@ -57,7 +74,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       if (it) return cs.map(i => (i.id === id ? { ...i, qty: i.qty + qty } : i));
       return [...cs, { id, qty, checked: true }];
     });
-    toast(PRODUCTS[id].name + ' added to cart');
+    toast(products[id] ? products[id].name + ' added to cart' : 'Item added to cart');
   };
   const setCartQty = (id: string, qty: number) =>
     setCart(cs => cs.map(i => (i.id === id ? { ...i, qty: Math.min(99, Math.max(1, qty)) } : i)));
@@ -68,7 +85,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       return cs.map(i => ({ ...i, checked: v }));
     });
   const checkedItems = () => cart.filter(i => i.checked);
-  const subtotal = () => checkedItems().reduce((s, i) => s + PRODUCTS[i.id].price * i.qty, 0);
+  const subtotal = () => checkedItems().reduce((s, i) => s + (products[i.id] ? products[i.id].price : 0) * i.qty, 0);
   const totalPay = () => {
     const st = subtotal();
     return st === 0 ? 0 : Math.max(0, st - (st >= 999 ? 100 : 0));
@@ -117,7 +134,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
   const toShipCount = orders.filter(o => o.status === 'To Ship').length;
 
   const value: ShopState = {
-    cart, orders, convos, purchTab, activeThread, lastOrder,
+    products, refreshProducts, cart, orders, convos, purchTab, activeThread, lastOrder,
     cartCount, unreadTotal, toShipCount,
     addToCart, setCartQty, toggleChecked, toggleAll, removeUnchecked: () => setCart(cs => cs.filter(i => !i.checked)),
     subtotal, totalPay, checkedItems, placeOrder, buyAgain, setPurchTab,

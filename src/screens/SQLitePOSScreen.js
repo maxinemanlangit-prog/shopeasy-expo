@@ -3,9 +3,11 @@ import { View, Text, FlatList, StyleSheet, TextInput, Modal, TouchableOpacity, A
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db, initDatabase } from '../services/db';
 import { colors, peso } from '../../screens/ui';
+import { useShop } from '../state/ShopContext';
 
 export default function SQLitePOSScreen() {
   const insets = useSafeAreaInsets();
+  const { refreshProducts } = useShop();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -40,6 +42,7 @@ export default function SQLitePOSScreen() {
     setForm({ name: '', category: '', price: '', stock: '' });
     setModalVisible(false);
     loadProducts(search);
+    refreshProducts();
   }
 
   function deleteProduct(id) {
@@ -51,6 +54,7 @@ export default function SQLitePOSScreen() {
         onPress: () => {
           db.runSync('DELETE FROM products WHERE id = ?;', [id]);
           loadProducts(search);
+          refreshProducts();
         },
       },
     ]);
@@ -59,6 +63,7 @@ export default function SQLitePOSScreen() {
   function changeStock(id, delta) {
     db.runSync('UPDATE products SET stock = MAX(stock + ?, 0) WHERE id = ?;', [delta, id]);
     loadProducts(search);
+    refreshProducts();
   }
 
   useEffect(() => {

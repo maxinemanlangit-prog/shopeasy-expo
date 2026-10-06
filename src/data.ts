@@ -1,4 +1,5 @@
 import { ImageSourcePropType } from 'react-native';
+import { db } from './services/db';
 
 export const C = {
   bg: '#F2FAFF',
@@ -31,20 +32,29 @@ export interface Product {
   desc: string;
 }
 
-export const PRODUCTS: Record<string, Product> = {
-  headphones: {
-    id: 'headphones', name: 'AirTune Wireless Headphones', price: 1299, old: 1999,
-    off: '35% OFF', discount: '−35%', img: require('../assets/headphones.png'),
-    rating: '★ 4.9 (248 reviews)', sold: '1.2k sold',
-    desc: 'Big sound, zero wires. Enjoy 40-hour battery life, soft ear cushions and clear calls with Bluetooth 5.3.',
-  },
-  speaker: {
-    id: 'speaker', name: 'Mini Bluetooth Speaker', price: 599, old: 799,
-    off: '25% OFF', discount: '−25%', img: require('../assets/speaker.png'),
-    rating: '★ 4.8 (180 reviews)', sold: '680 sold',
-    desc: 'Pocket-sized speaker with rich bass and 12-hour playtime. Pairs instantly over Bluetooth 5.3.',
-  },
-};
+export function getProductsFromDb(): Record<string, Product> {
+  const rows = db.getAllSync('SELECT * FROM products ORDER BY id DESC;') as any[];
+  const map: Record<string, Product> = {};
+  for (const r of rows) {
+    const id = String(r.id);
+    const img: ImageSourcePropType = r.name && r.name.includes('Speaker')
+      ? require('../assets/speaker.png')
+      : require('../assets/headphones.png');
+    map[id] = {
+      id,
+      name: r.name,
+      price: r.price,
+      old: r.price,
+      off: '',
+      discount: '',
+      img,
+      rating: '★ 4.5',
+      sold: r.stock != null ? `${r.stock} in stock` : '',
+      desc: `${r.category ? r.category + ' · ' : ''}Stock: ${r.stock}`,
+    };
+  }
+  return map;
+}
 
 export const peso = (n: number) => '₱' + n.toLocaleString('en-PH');
 
@@ -65,15 +75,9 @@ export const CATS: [string, string][] = [
   ['Bags', 'bag'], ['Sports', 'gym'], ['Groceries', 'apple'], ['Toys', 'toys'], ['More', 'grid'],
 ];
 
-export const initialCart: CartItem[] = [
-  { id: 'headphones', qty: 1, checked: true },
-  { id: 'speaker', qty: 1, checked: true },
-];
+export const initialCart: CartItem[] = [];
 
-export const initialOrders: Order[] = [
-  { id: '#SE-261004-0821', date: 'Oct 4, 2026', status: 'To Ship', seller: 'SoundLab Official', items: [{ id: 'headphones', qty: 1 }, { id: 'speaker', qty: 1 }], total: 1798, pay: 'GCash' },
-  { id: '#SE-260912-0415', date: 'Sep 12, 2026', status: 'Completed', seller: 'SoundLab Official', items: [{ id: 'speaker', qty: 1 }], total: 599, pay: 'GCash', delivered: 'Sep 15' },
-];
+export const initialOrders: Order[] = [];
 
 export const initialConvos: Convo[] = [
   { name: 'SoundLab Official', time: '9:38 AM', unread: 2, blue: true, icon: 'headphones', last: "Thanks, Alex! We're packing your order.", msgs: [{ from: 'them', t: 'Hi Alex! Thanks for your order 🎉' }, { from: 'them', t: "Thanks, Alex! We're packing your order." }] },
